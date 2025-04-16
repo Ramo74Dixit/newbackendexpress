@@ -8,7 +8,10 @@ const bcrypt= require("bcrypt");
 const logger= require("./middleware/logger")
 const jwt=require("jsonwebtoken")
 const errorHandler=require("./middleware/errorHandler");
+const Course=require("./models/Coures")
 const authtoken=require("./middleware/authtoken")
+const {authMiddleware,authorizeRole}= require("./middleware/authorization");
+const upload=require("./config/multer");
 require('dotenv').config();
 
 const app =express();
@@ -28,7 +31,7 @@ app.use(errorHandler);
 
 app.post("/register-user",logger,async (req,res)=>{
     try{
-      const{name,email,password,contact}=req.body;
+      const{name,email,password,contact,role}=req.body;
       // for saving this data
       const saltRounds=await bcrypt.genSalt(10);
       const hashedPassword= await bcrypt.hash(password,saltRounds);
@@ -36,7 +39,7 @@ app.post("/register-user",logger,async (req,res)=>{
     //   const result=await bcrypt.compare(password,hashedPassword);
     //   console.log("Value of matched password is ",result)
       const otp= Math.floor(1000000+Math.random()*9000000).toString();
-      const newUser= new User({name,email,password:hashedPassword,contact,otp});
+      const newUser= new User({name,email,password:hashedPassword,contact,otp,role});
       await newUser.save();
       const subject='Welcome to our Platform 🔥 Your Otp For Verification'
       const text= `Hi ${name} , Thank You for registering at our platform . Your Otp is ${otp}, Please don't share it to anybody else.`
@@ -57,7 +60,7 @@ app.post("/register-user",logger,async (req,res)=>{
 
 // database se data extract krne ke liye hmm log get method ka use krenge 
 
-app.get("/all",logger,authtoken,async (req,res)=>{
+app.get("/all",logger,authMiddleware,authorizeRole('Trainer'),async (req,res)=>{
     try{
          // Jab database se sare users ko find krna ho to kaun sa method use krenge - 
          // {id:1,name:Ram,class:3,address:"Hisar"},{id:2,name:Mohan,class:3,address:"Rohtak"}
@@ -70,7 +73,52 @@ app.get("/all",logger,authtoken,async (req,res)=>{
         return res.status(500).json({message:"An error occurred"});
     }
 })
+// Router for adding course 
+app.post ("/add-course",authMiddleware,authorizeRole('Counsellor'),upload.single("banner"),async(req,res)=>{
+    try{
+        const {title,duration,description,category,discountPercentage10,offerTillDate,startDate,endDate,createdBy}=req.body;
+        const banner= req.file.path;
+        const newCourse=new Course({
+            title,
+            duration,
+            description,
+            category,
+            discountPercentage,
+            offerTillDate,
+            startDate,
+            endDate,
+            banner,
+            createdBy
+        });
+        await newCourse.save();
+        return res.status(201).json({message:"Course is successfully added",newCourse});
+    }catch(error){
+        return res.status(500).json({message:"An error occured"})
+    }
+})
 
+// Routes for fetching all course 
+
+app.get("/allcourses",async(req,res)=>{
+    try{
+        
+        const{search,duration,category}=req.query;
+        let filters={}
+        if(search){
+            filters.title={$regex:search,$options:"i"}
+        }
+        if(duration){
+            filters.duration=duration;
+        }
+        if(category){
+            filters.category=category;
+        }
+        const courses= await Course.find(filters);
+       return res.status(200).json({message:"All courses found successfully",courses})
+    }catch(error){
+        return res.status(500).json({message:"An error occured during fetching course"})
+    }
+})
 app.put("/users/:id",logger,async(req,res)=>{
     try{
           // findByIdAndUpdate -> Sabse phle id ke basis pr find karna uske bad update krna 
@@ -111,7 +159,7 @@ app.post("/login", logger, async(req, res, next) => {
         }
 
         // Generate JWT Token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ email}, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         return res.status(200).json({ message: "Login successful", token });
     } catch (error) {

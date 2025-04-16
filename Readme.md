@@ -26,3 +26,7 @@ install nodemailer
 
 npm i nodemailer
 
+
+
+// why we will use enum 
+-> when we have to basically provide some options in database schema at that time we will use enum .
