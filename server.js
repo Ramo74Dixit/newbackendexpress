@@ -1,25 +1,29 @@
 const express = require("express");
-
+const cors = require("cors");
 const connectDB = require("./database");
-
 const User = require("./models/User");
-const sendMail= require('./config/nodemailerConfig')
-const bcrypt= require("bcrypt");
-const logger= require("./middleware/logger")
-const jwt=require("jsonwebtoken")
-const errorHandler=require("./middleware/errorHandler");
-const Course=require("./models/Coures")
-const authtoken=require("./middleware/authtoken")
-const {authMiddleware,authorizeRole}= require("./middleware/authorization");
-const upload=require("./config/multer");
+const sendMail = require('./config/nodemailerConfig');
+const bcrypt = require("bcrypt");
+const logger = require("./middleware/logger");
+const jwt = require("jsonwebtoken");
+const errorHandler = require("./middleware/errorHandler");
+const Course = require("./models/Coures");
+const authtoken = require("./middleware/authtoken");
+const { authMiddleware, authorizeRole } = require("./middleware/authorization");
+const upload = require("./config/multer");
 require('dotenv').config();
 
-const app =express();
-
+const app = express();
 connectDB();
-// bcrypt library -> npm install bcrypt 
-app.use(express.json())
+
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
+
+app.use(express.json());
 app.use(errorHandler);
+
 // ye line hmme database me json formate to data parse(bhejne) karne me help kregi 
 // database me phla user insert krna
 
@@ -183,8 +187,8 @@ app.post("/verify",logger,async(req,res)=>{
         return res.status(500).json({message:"an error occured"})
     }
 })
-app.listen(5001,()=>{
-    console.log("Server is running on localhost:5000")
+app.listen(process.env.PORT  || 5001,()=>{
+    console.log(`Server is running on localhost:5000`)
 })
 
 
